@@ -1,0 +1,193 @@
+{
+  "entities": {
+    "Algorithm": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Algorithm",
+      "type": "object",
+      "description": "Represents an algorithm that can be assembled and visualized in the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Algorithm entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the algorithm (e.g., Bubble Sort)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed explanation of the algorithm's purpose and functionality."
+        },
+        "initialData": {
+          "type": "string",
+          "description": "JSON representation of the initial data structure used for visualization (e.g., an array of numbers).",
+          "format": "json"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "initialData"
+      ]
+    },
+    "Block": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Block",
+      "type": "object",
+      "description": "Represents a code block that can be used to assemble an algorithm.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Block entity."
+        },
+        "algorithmId": {
+          "type": "string",
+          "description": "Reference to Algorithm. (Relationship: Algorithm 1:N Block)"
+        },
+        "order": {
+          "type": "number",
+          "description": "The order in which the block appears in the selection palette."
+        },
+        "codeSnippet": {
+          "type": "string",
+          "description": "Code snippet displayed to the user (e.g., 'if (A[i] > A[i+1])')."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of the block (e.g., 'loop', 'if', 'swap')."
+        },
+        "logicId": {
+          "type": "string",
+          "description": "Identifier used to execute the block's logic within the engine."
+        }
+      },
+      "required": [
+        "id",
+        "algorithmId",
+        "order",
+        "codeSnippet",
+        "type",
+        "logicId"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User's display name."
+        }
+      },
+      "required": [
+        "id",
+        "email"
+      ]
+    },
+    "UserProgress": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProgress",
+      "type": "object",
+      "description": "Represents a user's progress on a specific algorithm.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProgress entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N UserProgress)"
+        },
+        "algorithmId": {
+          "type": "string",
+          "description": "Reference to Algorithm. (Relationship: Algorithm 1:N UserProgress)"
+        },
+        "assembledBlocks": {
+          "type": "array",
+          "description": "The set of blocks put together by the user",
+          "items": {
+            "type": "string"
+          }
+        },
+        "progress": {
+          "type": "number",
+          "description": "User's numerical progress on the algorithm (e.g., 0 to 1 for 0% to 100%)."
+        },
+        "lastModified": {
+          "type": "string",
+          "description": "Timestamp of the last time the user made progress.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "algorithmId",
+        "assembledBlocks",
+        "progress",
+        "lastModified"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "algorithms/{algorithmId}",
+        "definition": {
+          "entityName": "Algorithm",
+          "schema": {
+            "$ref": "#/backend/entities/Algorithm"
+          },
+          "description": "Stores algorithm definitions, including name, description, and initial data for visualization."
+        }
+      },
+      {
+        "path": "blocks/{blockId}",
+        "definition": {
+          "entityName": "Block",
+          "schema": {
+            "$ref": "#/backend/entities/Block"
+          },
+          "description": "Stores code block definitions, including the algorithm ID, order, code snippet, and logic ID."
+        }
+      },
+      {
+        "path": "users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles, including email and display name."
+        }
+      },
+      {
+        "path": "users/{userId}/progress/{progressId}",
+        "definition": {
+          "entityName": "UserProgress",
+          "schema": {
+            "$ref": "#/backend/entities/UserProgress"
+          },
+          "description": "Stores user progress for each algorithm, including assembled blocks, progress percentage, and last modified timestamp. This is a subcollection of the users collection, enabling path-based ownership."
+        }
+      }
+    ]
+  }
+}

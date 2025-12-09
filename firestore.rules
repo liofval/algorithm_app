@@ -1,0 +1,153 @@
+/**
+ * This ruleset enforces a security model that segregates public, read-only content from private, user-owned data.
+ *
+ * Core Philosophy:
+ * The rules establish two distinct data domains. First, global application content such as 'algorithms' and 'blocks'
+ * is publicly readable by any user (authenticated or not) but is not writable by clients, ensuring data integrity.
+ * This content is assumed to be managed by administrators or through a trusted backend service.
+ * Second, user-specific data ('users' profiles and their 'progress' subcollections) is strictly private and
+ * can only be accessed or modified by the authenticated owner of that data.
+ *
+ * Data Structure:
+ * - /algorithms/{algorithmId}: Publicly readable definitions of algorithms.
+ * - /blocks/{blockId}: Publicly readable code blocks associated with algorithms.
+ * - /users/{userId}: Private user profile documents.
+ * - /users/{userId}/progress/{progressId}: A subcollection containing a user's private progress on specific algorithms.
+ *
+ * Key Security Decisions:
+ * - User Enumeration is Disabled: Listing documents in the top-level `/users` collection is prohibited to protect user privacy.
+ * - Client-Side Writes to Public Data are Disabled: To maintain the integrity of core application data, clients cannot write to the `/algorithms` or `/blocks` collections.
+ * - Strict Ownership Model: All data under `/users/{userId}` is strictly controlled by the matching authenticated user, using path-based security.
+ * - User Deletion Disabled: Users cannot delete their own root profile document to prevent orphaned data and simplify application logic. Deletion should be handled by a dedicated backend process if needed.
+ *
+ * Denormalization for Authorization:
+ * The data model is designed for efficient security rules. User-specific data is nested under a path containing the user's UID (`/users/{userId}/...`), which allows for simple and fast ownership checks without needing extra database reads (`get()`). Relational integrity fields like `userId` are included in subcollection documents (`UserProgress`) to validate that data is being created in the correct location.
+ *
+ * Structural Segregation:
+ * The ruleset leverages structural segregation by placing public content (`algorithms`, `blocks`) in separate top-level collections from private user data (`users`). This approach is more secure and performant than mixing public and private documents in a single collection.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------------
+    // Helper Functions
+    // ------------------------------------------------------------------------
+
+    /**
+     * Checks if a user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user's ID matches the provided userId.
+     * This is the primary function for enforcing data ownership.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks if the user is the owner AND the document already exists.
+     * Crucial for secure update and delete operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+    
+    /**
+     * On create, validates that the user document's internal 'id' field matches the document's ID in the path.
+     */
+    function hasValidUserDataForCreate(userId) {
+      return request.resource.data.id == userId;
+    }
+    
+    /**
+     * On update, ensures the user document's internal 'id' field cannot be changed.
+     */
+    function isUserDataImmutable() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * On create, validates that a progress document's internal 'userId' field matches the user ID in the path.
+     */
+    function hasValidProgressDataForCreate(userId) {
+      return request.resource.data.userId == userId;
+    }
+
+    /**
+     * On update, ensures a progress document's 'userId' field cannot be changed, preventing re-assignment.
+     */
+    function isProgressDataImmutable() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    // ------------------------------------------------------------------------
+    // Collection Rules
+    // ------------------------------------------------------------------------
+
+    /**
+     * @description Stores public definitions of algorithms. Anyone can read, but no one can write from the client.
+     * @path /algorithms/{algorithmId}
+     * @allow (get) Any user, signed in or not, can read an algorithm.
+     * @deny (create) A signed-in user attempts to create a new algorithm document.
+     * @principle Secures core application content as public and read-only for clients.
+     */
+    match /algorithms/{algorithmId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Stores public code blocks for algorithms. Anyone can read, but no one can write from the client.
+     * @path /blocks/{blockId}
+     * @allow (get) Any user, signed in or not, can read a code block.
+     * @deny (create) A signed-in user attempts to create a new block document.
+     * @principle Secures core application content as public and read-only for clients.
+     */
+    match /blocks/{blockId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description User profile documents. A user can create, read, and update their own document, but cannot list or access others' documents.
+     * @path /users/{userId}
+     * @allow (create) A newly authenticated user (auth.uid: 'user_123') creates their own profile at `/users/user_123`.
+     * @deny (get) A signed-in user (auth.uid: 'user_123') tries to read another user's profile at `/users/user_456`.
+     * @deny (list) Any user attempts to get a list of all users in the system.
+     * @principle Enforces strict ownership of user profile data and prevents user enumeration.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && hasValidUserDataForCreate(userId);
+      allow update: if isOwner(userId) && isUserDataImmutable();
+      allow delete: if false;
+
+      /**
+       * @description A user's progress on various algorithms. This data is private and owned entirely by the parent user.
+       * @path /users/{userId}/progress/{progressId}
+       * @allow (create) An authenticated user (auth.uid: 'user_123') creates a new progress document under their own path `/users/user_123/progress/alg_abc`.
+       * @deny (list) An authenticated user (auth.uid: 'user_123') attempts to list progress documents for another user at `/users/user_456/progress`.
+       * @principle Restricts access to a user's own private data tree using path-based ownership.
+       */
+      match /progress/{progressId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && hasValidProgressDataForCreate(userId);
+        allow update: if isExistingOwner(userId) && isProgressDataImmutable();
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+  }
+}
