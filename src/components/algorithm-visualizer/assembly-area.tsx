@@ -82,12 +82,12 @@ export function AssemblyArea({ blocks, onDrop, onBlockUpdate, validation }: Asse
   };
 
   return (
-    <Card className="flex-grow flex flex-col">
-      <CardHeader>
+    <Card className="flex-grow flex flex-col min-h-0">
+      <CardHeader className="flex-shrink-0">
         <CardTitle className="font-headline text-lg">Assembly Area</CardTitle>
       </CardHeader>
       <CardContent
-        className="flex-grow p-4 bg-muted/50 rounded-b-lg overflow-y-auto"
+        className="flex-grow p-4 bg-muted/50 rounded-b-lg overflow-y-auto min-h-0"
         onDragOver={(e) => handleDragOver(e, blocks.length)}
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, blocks.length)}

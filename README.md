@@ -1,15 +1,18 @@
 # Algorithm Visualizer
 
-An interactive web application designed to help users learn and understand various computer science algorithms through visualization and AI-generated explanations.
+An interactive web application designed to help users learn and understand various computer science algorithms by assembling and visualizing them.
 
 ![Algorithm Visualizer Screenshot](https://storage.googleapis.com/gemini-marc-resources/project-screenshots/algorithm-visualizer-screenshot.png)
 
 ## ✨ Features
 
-- **Interactive Algorithm Visualization:** Watch algorithms work step-by-step with real-time visual feedback.
-- **AI-Powered Explanations:** Leverages Google's Genkit framework to generate clear and concise descriptions for each algorithm, tailored for learners.
+- **Interactive Algorithm Assembly:** Build algorithms by dragging, dropping, and indenting code blocks.
+- **Step-by-Step Visualization:** Watch your assembled algorithm work in real-time with visual feedback.
+- **Multiple Algorithms:** Supports multiple sorting algorithms.
+  - Bubble Sort
+  - Selection Sort
 - **Modern UI/UX:** Built with Next.js, shadcn/ui, and Tailwind CSS for a responsive and intuitive user experience.
-- **Component-Based Architecture:** Easily extendable with new algorithms and visualization components. (Currently features Bubble Sort).
+- **Component-Based Architecture:** Easily extendable with new algorithms and visualization components.
 - **Firebase Integration:** Ready for backend features like user authentication and data persistence.
 
 ## 🚀 Technologies Used
@@ -17,7 +20,6 @@ An interactive web application designed to help users learn and understand vario
 - **Frontend:** [Next.js](https://nextjs.org/), [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/)
 - **UI Components:** [shadcn/ui](https://ui.shadcn.com/)
 - **Styling:** [Tailwind CSS](https://tailwindcss.com/)
-- **AI:** [Genkit (Google)](https://firebase.google.com/docs/genkit)
 - **Backend:** [Firebase](https://firebase.google.com/) (Firestore, Auth)
 
 ## 📦 Getting Started
@@ -78,7 +80,6 @@ The codebase is organized into several key directories:
 
 - `src/app/`: Contains the main application pages and routing logic (Next.js App Router).
 - `src/components/`: Shared React components, including UI elements (`ui/`) and the core visualizer components (`algorithm-visualizer/`).
-- `src/ai/`: Holds the Genkit AI flows, including the logic for generating algorithm descriptions.
 - `src/firebase/`: Firebase configuration, providers, and custom hooks for interacting with Firestore.
 - `src/hooks/`: Custom React hooks for algorithm logic (e.g., `use-bubble-sort.ts`).
 - `src/lib/`: Utility functions, type definitions, and shared data.

@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { Header } from '@/components/header';
 import { AlgorithmCard } from '@/components/algorithm-card';
-import { algorithms } from '@/lib/data';
-import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import { fetchAlgorithms } from '@/lib/api';
 
-export default function Home() {
+export const dynamic = 'force-dynamic';
+
+export default async function Home() {
+  const algorithms = await fetchAlgorithms();
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />

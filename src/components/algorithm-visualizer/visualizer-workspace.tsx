@@ -107,8 +107,8 @@ export function VisualizerWorkspace({
   };
 
   return (
-    <div className="flex h-full w-full p-4 gap-4">
-      <div className="w-1/3 flex flex-col gap-4">
+    <div className="flex h-full w-full p-4 gap-4 overflow-hidden">
+      <div className="w-1/3 flex flex-col gap-4 min-h-0">
         <DescriptionPanel algorithm={algorithm} />
         <AssemblyArea
           blocks={assembledBlocks}

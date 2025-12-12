@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { algorithms, codeBlocks } from '@/lib/data';
+import { fetchAlgorithm } from '@/lib/api';
 import { AlgorithmPageClient } from './client';
 
 type Props = {
@@ -8,25 +8,21 @@ type Props = {
   }>;
 };
 
-export function generateStaticParams() {
-  return algorithms.map((algo) => ({
-    slug: algo.id,
-  }));
-}
+export const dynamic = 'force-dynamic';
 
 export default async function AlgorithmPage({ params }: Props) {
   const { slug } = await params;
-  const algorithm = algorithms.find((a) => a.id === slug);
-  const blocks = codeBlocks.filter((b) => b.algorithmId === slug);
 
-  if (!algorithm) {
+  try {
+    const { algorithm, codeBlocks } = await fetchAlgorithm(slug);
+
+    return (
+      <AlgorithmPageClient
+        algorithm={algorithm}
+        availableBlocks={codeBlocks}
+      />
+    );
+  } catch {
     notFound();
   }
-
-  return (
-    <AlgorithmPageClient
-      algorithm={algorithm}
-      availableBlocks={blocks}
-    />
-  );
 }
