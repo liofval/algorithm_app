@@ -1,139 +1,65 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { AssembledBlock } from '@/lib/types';
 
 export interface ExecutionState {
   isRunning: boolean;
   activeIndices: number[];
   swapIndices: number[];
+  scaleBalanced: boolean; // 天秤が釣り合っている状態かどうか
 }
 
-// A simple interpreter for bubble sort logic
-const createBubbleSortInterpreter = (assembledBlocks: AssembledBlock[], array: number[]) => {
-  let i = 0;
-  let j = 0;
-  let n = array.length;
-  let programCounter = 0;
-  let loopStack: { pc: number, counter: 'i' | 'j', end: number }[] = [];
-  let conditionResult = false;
-  let data = [...array];
-
-  const step = () => {
-    if (programCounter >= assembledBlocks.length) {
-      // Reached end of user code, maybe check if sorted
-      return { data, active: [], swap: [], done: true };
-    }
-
-    const currentBlock = assembledBlocks[programCounter];
-    let active: number[] = [];
-    let swap: number[] = [];
-    let done = false;
-
-    switch (currentBlock.block.logicId) {
-      case 'loop_i':
-        if (loopStack.find(l => l.counter === 'i')) {
-          // Exiting loop
-          i++;
-          programCounter = loopStack.pop()!.pc;
-        } else {
-          // Entering loop
-          if (i < n - 1) {
-            loopStack.push({ pc: programCounter, counter: 'i', end: n - 1 });
-            j = 0; // Reset inner loop counter
-          } else {
-             // Find end of loop and skip
-            let level = currentBlock.level;
-            let pc = programCounter + 1;
-            while(pc < assembledBlocks.length && assembledBlocks[pc].level > level) {
-                pc++;
-            }
-            programCounter = pc -1; // it will be incremented later
-          }
-        }
-        break;
-
-      case 'loop_j':
-        if (loopStack.find(l => l.counter === 'j')) {
-            // Exiting loop
-            j++;
-            programCounter = loopStack.pop()!.pc;
-        } else {
-           // Entering loop
-           if (j < n - i - 1) {
-                loopStack.push({ pc: programCounter, counter: 'j', end: n - i - 1 });
-           } else {
-                // Find end of loop and skip
-                let level = currentBlock.level;
-                let pc = programCounter + 1;
-                while(pc < assembledBlocks.length && assembledBlocks[pc].level > level) {
-                    pc++;
-                }
-                programCounter = pc - 1; // it will be incremented later
-           }
-        }
-        break;
-      
-      case 'if_gt':
-        active = [j, j + 1];
-        if (data[j] > data[j + 1]) {
-          conditionResult = true;
-        } else {
-          conditionResult = false;
-          // Skip next block if it's the swap block and at the correct indent
-          const nextBlock = assembledBlocks[programCounter + 1];
-          if (nextBlock && nextBlock.block.logicId === 'swap' && nextBlock.level > currentBlock.level) {
-            programCounter++;
-          }
-        }
-        break;
-      
-      case 'swap':
-        if (conditionResult) {
-          swap = [j, j+1];
-          [data[j], data[j + 1]] = [data[j + 1], data[j]];
-        }
-        conditionResult = false;
-        break;
-    }
-    
-    // Naive loop handling
-    // If we just finished a block and the next block is at a lower indentation level,
-    // we might need to jump back to the start of a loop.
-    const nextPc = programCounter + 1;
-    if (nextPc < assembledBlocks.length && assembledBlocks[nextPc].level < currentBlock.level) {
-        // Exiting a block
-        const loop = loopStack[loopStack.length - 1];
-        if(loop) {
-            if (loop.counter === 'j' && j < (n - i - 2)) {
-                j++;
-                programCounter = loop.pc; // Stay on loop_j block
-            } else if(loop.counter === 'i' && i < (n - 2)) {
-                 i++;
-                 programCounter = loop.pc;
-            } else {
-                programCounter++;
-            }
-        } else {
-             programCounter++;
-        }
-    } else {
-         programCounter++;
-    }
-
-    if (i >= n - 1) {
-      done = true;
-    }
-
-    return { data, active, swap, done };
-  };
-
-  return { step };
+type Step = {
+  type: 'compare-start' | 'compare-result' | 'swap';
+  indices: [number, number];
+  data: number[];
 };
 
+function generateBubbleSortSteps(initialData: number[]): Step[] {
+  const steps: Step[] = [];
+  const data = [...initialData];
+  const n = data.length;
+
+  for (let i = 0; i < n - 1; i++) {
+    for (let j = 0; j < n - i - 1; j++) {
+      // Compare start - 天秤が釣り合った状態
+      steps.push({
+        type: 'compare-start',
+        indices: [j, j + 1],
+        data: [...data],
+      });
+
+      if (data[j] > data[j + 1]) {
+        // Compare result - 天秤が傾く（スワップが必要な場合のみ）
+        steps.push({
+          type: 'compare-result',
+          indices: [j, j + 1],
+          data: [...data],
+        });
+
+        // Swap
+        [data[j], data[j + 1]] = [data[j + 1], data[j]];
+        steps.push({
+          type: 'swap',
+          indices: [j, j + 1],
+          data: [...data],
+        });
+      } else {
+        // スワップ不要の場合は傾きを見せて終わり
+        steps.push({
+          type: 'compare-result',
+          indices: [j, j + 1],
+          data: [...data],
+        });
+      }
+    }
+  }
+
+  return steps;
+}
 
 export const useBubbleSort = (
-  assembledBlocks: AssembledBlock[],
+  assembledBlocks: { block: { id: string } }[],
   initialData: number[]
 ) => {
   const [data, setData] = useState([...initialData]);
@@ -141,17 +67,30 @@ export const useBubbleSort = (
     isRunning: false,
     activeIndices: [],
     swapIndices: [],
+    scaleBalanced: false,
   });
   const [speed, setSpeed] = useState(750);
   const [isSorted, setIsSorted] = useState(false);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const interpreterRef = useRef(createBubbleSortInterpreter(assembledBlocks, initialData));
+  const stepsRef = useRef<Step[]>([]);
+  const stepIndexRef = useRef(0);
 
+  // Reset when blocks change
   useEffect(() => {
-    interpreterRef.current = createBubbleSortInterpreter(assembledBlocks, data);
-  }, [assembledBlocks, data]);
-  
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setData([...initialData]);
+    setExecutionState({
+      isRunning: false,
+      activeIndices: [],
+      swapIndices: [],
+      scaleBalanced: false,
+    });
+    setIsSorted(false);
+    stepsRef.current = [];
+    stepIndexRef.current = 0;
+  }, [assembledBlocks, initialData]);
+
   const reset = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setData([...initialData]);
@@ -159,10 +98,12 @@ export const useBubbleSort = (
       isRunning: false,
       activeIndices: [],
       swapIndices: [],
+      scaleBalanced: false,
     });
     setIsSorted(false);
-    interpreterRef.current = createBubbleSortInterpreter(assembledBlocks, initialData);
-  }, [initialData, assembledBlocks]);
+    stepsRef.current = [];
+    stepIndexRef.current = 0;
+  }, [initialData]);
 
   useEffect(() => {
     return () => {
@@ -170,40 +111,74 @@ export const useBubbleSort = (
     };
   }, []);
 
-  const step = useCallback(() => {
-    const { data: newData, active, swap, done } = interpreterRef.current.step();
-
-    setData([...newData]);
-    setExecutionState(prev => ({ ...prev, activeIndices: active, swapIndices: swap }));
-
-    if (done) {
+  const executeStep = useCallback(() => {
+    if (stepIndexRef.current >= stepsRef.current.length) {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      setExecutionState({ isRunning: false, activeIndices: [], swapIndices: [] });
+      setExecutionState({ isRunning: false, activeIndices: [], swapIndices: [], scaleBalanced: false });
       setIsSorted(true);
+      return;
     }
+
+    const step = stepsRef.current[stepIndexRef.current];
+    setData([...step.data]);
+
+    if (step.type === 'compare-start') {
+      setExecutionState((prev) => ({
+        ...prev,
+        activeIndices: step.indices,
+        swapIndices: [],
+        scaleBalanced: true, // 釣り合った状態
+      }));
+    } else if (step.type === 'compare-result') {
+      setExecutionState((prev) => ({
+        ...prev,
+        activeIndices: step.indices,
+        swapIndices: [],
+        scaleBalanced: false, // 傾いた状態
+      }));
+    } else {
+      setExecutionState((prev) => ({
+        ...prev,
+        activeIndices: [],
+        swapIndices: step.indices,
+        scaleBalanced: false,
+      }));
+    }
+
+    stepIndexRef.current++;
   }, []);
 
-  const run = () => {
-    if (isSorted) reset();
-    setExecutionState(prev => ({ ...prev, isRunning: true }));
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(step, speed);
-  };
+  const run = useCallback(() => {
+    if (isSorted) {
+      reset();
+      return;
+    }
 
-  const pause = () => {
-    setExecutionState(prev => ({ ...prev, isRunning: false }));
+    // Generate steps if not already done
+    if (stepsRef.current.length === 0) {
+      stepsRef.current = generateBubbleSortSteps(initialData);
+      stepIndexRef.current = 0;
+    }
+
+    setExecutionState((prev) => ({ ...prev, isRunning: true }));
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(executeStep, speed);
+  }, [isSorted, reset, initialData, executeStep, speed]);
+
+  const pause = useCallback(() => {
+    setExecutionState((prev) => ({ ...prev, isRunning: false }));
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
-  };
+  }, []);
 
-  const handleSpeedChange = (newSpeed: number) => {
+  const handleSpeedChange = useCallback((newSpeed: number) => {
     setSpeed(newSpeed);
     if (executionState.isRunning) {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(step, newSpeed);
+      intervalRef.current = setInterval(executeStep, newSpeed);
     }
-  };
+  }, [executionState.isRunning, executeStep]);
 
   return { data, executionState, run, pause, reset, setSpeed: handleSpeedChange, speed, isSorted };
 };

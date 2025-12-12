@@ -25,8 +25,10 @@ export function DescriptionPanel({ algorithm }: DescriptionPanelProps) {
           <Accordion type="single" collapsible className="w-full mt-4">
             <AccordionItem value="item-1">
               <AccordionTrigger>Learn More</AccordionTrigger>
-              <AccordionContent className="space-y-4">
-                <p className="text-sm whitespace-pre-wrap">{algorithm.longDescription}</p>
+              <AccordionContent>
+                <div className="max-h-48 overflow-y-auto pr-2 space-y-4">
+                  <p className="text-sm whitespace-pre-wrap">{algorithm.longDescription}</p>
+                </div>
               </AccordionContent>
             </AccordionItem>
           </Accordion>

@@ -1,18 +1,24 @@
 'use client';
 
 import React, { useState } from 'react';
-import { GripVertical, Trash2, ArrowBigRight, ArrowBigLeft } from 'lucide-react';
+import { GripVertical, Trash2, ArrowBigRight, ArrowBigLeft, CheckCircle2, XCircle } from 'lucide-react';
 import type { CodeBlock, AssembledBlock } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { CodeBlockComponent } from './code-block';
+
+type ValidationResult = {
+  isCorrect: boolean;
+  message: string;
+};
 
 interface AssemblyAreaProps {
   blocks: AssembledBlock[];
   onDrop: (block: CodeBlock, index: number, level: number) => void;
   onBlockUpdate: (blocks: AssembledBlock[]) => void;
+  validation: ValidationResult;
 }
 
-export function AssemblyArea({ blocks, onDrop, onBlockUpdate }: AssemblyAreaProps) {
+export function AssemblyArea({ blocks, onDrop, onBlockUpdate, validation }: AssemblyAreaProps) {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
@@ -117,6 +123,22 @@ export function AssemblyArea({ blocks, onDrop, onBlockUpdate }: AssemblyAreaProp
         {blocks.length === 0 && (
           <div className="flex items-center justify-center h-full text-muted-foreground border-2 border-dashed border-border rounded-lg">
             <p>Drag blocks here to start</p>
+          </div>
+        )}
+        {validation.message && (
+          <div
+            className={`mt-4 p-3 rounded-lg flex items-center gap-2 ${
+              validation.isCorrect
+                ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20'
+                : 'bg-destructive/10 text-destructive border border-destructive/20'
+            }`}
+          >
+            {validation.isCorrect ? (
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+            ) : (
+              <XCircle className="h-5 w-5 flex-shrink-0" />
+            )}
+            <p className="text-sm font-medium">{validation.message}</p>
           </div>
         )}
       </CardContent>

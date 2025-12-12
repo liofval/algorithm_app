@@ -18,6 +18,7 @@ interface ControlPanelProps {
   onSpeedChange: (speed: number) => void;
   speed: number;
   isRunning: boolean;
+  canRun: boolean;
 }
 
 export function ControlPanel({
@@ -27,6 +28,7 @@ export function ControlPanel({
   onSpeedChange,
   speed,
   isRunning,
+  canRun,
 }: ControlPanelProps) {
 
   const speedLevels = [
@@ -39,7 +41,7 @@ export function ControlPanel({
     <div className="absolute top-4 right-4 left-4 z-10 flex items-center justify-between p-2 rounded-lg bg-card/80 backdrop-blur-sm border">
       <div className="flex items-center gap-2">
         {!isRunning ? (
-          <Button size="icon" onClick={onRun}>
+          <Button size="icon" onClick={onRun} disabled={!canRun}>
             <Play className="h-4 w-4" />
             <span className="sr-only">Run</span>
           </Button>

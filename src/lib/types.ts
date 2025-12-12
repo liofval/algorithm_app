@@ -6,7 +6,7 @@ export type Algorithm = {
   longDescription?: string;
 };
 
-export type CodeBlockType = 'loop-outer' | 'loop-inner' | 'if' | 'swap' | 'end';
+export type CodeBlockType = 'loop-outer' | 'loop-inner' | 'if' | 'swap' | 'end' | 'assignment' | 'comparison';
 
 export type CodeBlock = {
   id: string;
@@ -15,6 +15,7 @@ export type CodeBlock = {
   codeSnippet: string;
   type: CodeBlockType;
   logicId: string;
+  correctLevel: number;
 };
 
 export type AssembledBlock = {

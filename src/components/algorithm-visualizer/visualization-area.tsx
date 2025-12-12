@@ -1,8 +1,10 @@
 'use client';
 
-import React from 'react';
 import type { ExecutionState } from '@/hooks/use-bubble-sort';
-import { CheckCircle2 } from 'lucide-react';
+import { Scale } from './scale';
+import { BarChart, BAR_TOTAL_WIDTH, BAR_WIDTH } from './bar-chart';
+import { StatusMessage } from './status-message';
+import { CompletionOverlay } from './completion-overlay';
 
 interface VisualizationAreaProps {
   data: number[];
@@ -10,44 +12,87 @@ interface VisualizationAreaProps {
   isSorted: boolean;
 }
 
+type ComparisonStatus = 'comparing' | 'need-swap' | 'no-swap' | 'swapping';
+
+function getComparisonStatus(
+  isSwapping: boolean,
+  isBalanced: boolean,
+  leftHeavier: boolean
+): ComparisonStatus {
+  if (isSwapping) return 'swapping';
+  if (isBalanced) return 'comparing';
+  return leftHeavier ? 'need-swap' : 'no-swap';
+}
+
+function calculateScalePosition(leftIndex: number): number {
+  const SCALE_HALF_WIDTH = 56;
+  return leftIndex * BAR_TOTAL_WIDTH + BAR_TOTAL_WIDTH + BAR_WIDTH / 2 - SCALE_HALF_WIDTH;
+}
+
 export function VisualizationArea({ data, executionState, isSorted }: VisualizationAreaProps) {
-  const { activeIndices, swapIndices } = executionState;
+  const { activeIndices, swapIndices, scaleBalanced } = executionState;
+
+  const isComparing = activeIndices.length === 2;
+  const isSwapping = swapIndices.length === 2;
+  const showScale = isComparing || isSwapping;
+
+  const comparedIndices = isSwapping ? swapIndices : activeIndices;
+  const leftIndex = comparedIndices.length === 2 ? Math.min(...comparedIndices) : -1;
+  const rightIndex = comparedIndices.length === 2 ? Math.max(...comparedIndices) : -1;
+
+  const leftValue = leftIndex >= 0 ? data[leftIndex] : 0;
+  const rightValue = rightIndex >= 0 ? data[rightIndex] : 0;
+  const leftHeavier = leftValue > rightValue;
+
+  const status = getComparisonStatus(isSwapping, scaleBalanced, leftHeavier);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full pt-16">
-      {isSorted && (
-        <div className="absolute inset-0 bg-card/80 flex flex-col items-center justify-center z-10">
-            <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
-            <h3 className="text-2xl font-bold font-headline text-foreground">Algorithm Complete!</h3>
-            <p className="text-muted-foreground">The array is now sorted.</p>
+    <div className="flex flex-col items-center justify-start h-full pt-16 overflow-y-auto">
+      {isSorted && <CompletionOverlay />}
+
+      <div className="relative">
+        <BarChart
+          data={data}
+          activeIndices={activeIndices}
+          swapIndices={swapIndices}
+          isSorted={isSorted}
+        />
+
+        {showScale && leftIndex >= 0 && (
+          <div
+            className="absolute transition-all duration-300"
+            style={{
+              left: `${calculateScalePosition(leftIndex)}px`,
+              top: 'calc(100% + 40px)',
+            }}
+          >
+            <Scale
+              leftValue={leftValue}
+              rightValue={rightValue}
+              isSwapping={isSwapping}
+              isBalanced={scaleBalanced}
+            />
+          </div>
+        )}
+      </div>
+
+      {showScale && <div className="h-32" />}
+
+      {showScale && (
+        <StatusMessage
+          status={status}
+          leftIndex={leftIndex}
+          rightIndex={rightIndex}
+          leftValue={leftValue}
+          rightValue={rightValue}
+        />
+      )}
+
+      {!showScale && !isSorted && (
+        <div className="mt-8 text-sm text-muted-foreground flex items-center">
+          再生ボタンを押してソートを開始
         </div>
       )}
-      <div className="flex space-x-2 h-24 items-end">
-        {data.map((value, index) => {
-          const height = `${(value / Math.max(...data, 1)) * 80 + 20}%`;
-          const isActive = activeIndices.includes(index);
-          const isSwapping = swapIndices.includes(index);
-          
-          let backgroundColor = 'bg-primary';
-          if (isActive) backgroundColor = 'bg-accent';
-          if (isSwapping) backgroundColor = 'bg-destructive';
-          if (isSorted) backgroundColor = 'bg-green-500';
-
-          return (
-            <div key={`${value}-${index}`} className="relative text-center">
-              <div
-                className={`w-10 rounded-t-md transition-all duration-300 ease-in-out ${backgroundColor}`}
-                style={{ height }}
-              >
-                <span className="text-xs font-bold absolute -top-5 left-1/2 -translate-x-1/2 text-foreground">
-                  {value}
-                </span>
-              </div>
-              <div className="text-xs mt-1 text-muted-foreground w-10 text-center">{index}</div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

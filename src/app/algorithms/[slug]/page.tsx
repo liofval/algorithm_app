@@ -1,12 +1,11 @@
 import { notFound } from 'next/navigation';
 import { algorithms, codeBlocks } from '@/lib/data';
-import { Header } from '@/components/header';
-import { VisualizerWorkspace } from '@/components/algorithm-visualizer/visualizer-workspace';
+import { AlgorithmPageClient } from './client';
 
 type Props = {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 };
 
 export function generateStaticParams() {
@@ -15,8 +14,8 @@ export function generateStaticParams() {
   }));
 }
 
-export default function AlgorithmPage({ params }: Props) {
-  const { slug } = params;
+export default async function AlgorithmPage({ params }: Props) {
+  const { slug } = await params;
   const algorithm = algorithms.find((a) => a.id === slug);
   const blocks = codeBlocks.filter((b) => b.algorithmId === slug);
 
@@ -25,11 +24,9 @@ export default function AlgorithmPage({ params }: Props) {
   }
 
   return (
-    <div className="flex h-screen w-full flex-col bg-secondary">
-      <Header />
-      <main className="flex-1 overflow-hidden">
-        <VisualizerWorkspace algorithm={algorithm} availableBlocks={blocks} />
-      </main>
-    </div>
+    <AlgorithmPageClient
+      algorithm={algorithm}
+      availableBlocks={blocks}
+    />
   );
 }
